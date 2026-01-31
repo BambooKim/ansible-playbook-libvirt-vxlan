@@ -1,0 +1,33 @@
+---
+- name: Create storage pool directory
+  ansible.builtin.file:
+    path: "{{ libvirt_pool_path }}"
+    state: directory
+    owner: libvirt-qemu
+    group: kvm
+    mode: '0771'
+
+- name: Check if default pool exists
+  ansible.builtin.command: virsh pool-info {{ libvirt_pool_name }}
+  register: pool_check
+  failed_when: false
+  changed_when: false
+
+- name: Define default storage pool
+  ansible.builtin.command: >
+    virsh pool-define-as {{ libvirt_pool_name }} dir --target {{ libvirt_pool_path }}
+  when: pool_check.rc != 0
+
+- name: Build storage pool
+  ansible.builtin.command: virsh pool-build {{ libvirt_pool_name }}
+  when: pool_check.rc != 0
+  failed_when: false
+
+- name: Start storage pool
+  ansible.builtin.command: virsh pool-start {{ libvirt_pool_name }}
+  when: pool_check.rc != 0
+  failed_when: false
+
+- name: Autostart storage pool
+  ansible.builtin.command: virsh pool-autostart {{ libvirt_pool_name }}
+  changed_when: false

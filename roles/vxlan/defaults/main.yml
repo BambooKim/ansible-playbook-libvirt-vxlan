@@ -1,0 +1,7 @@
+---
+vxlan_vni: 100
+vxlan_port: 4789
+vxlan_mtu: 1450
+vxlan_interface_name: vxlan100
+vxlan_bridge_name: br-vxlan
+vxlan_mode: unicast

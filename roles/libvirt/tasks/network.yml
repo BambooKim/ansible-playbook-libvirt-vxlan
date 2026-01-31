@@ -1,0 +1,46 @@
+---
+- name: Check if default network exists and is active
+  ansible.builtin.command: virsh net-info default
+  register: default_net_check
+  failed_when: false
+  changed_when: false
+
+- name: Destroy default network
+  ansible.builtin.command: virsh net-destroy default
+  when: default_net_check.rc == 0
+  failed_when: false
+
+- name: Disable autostart for default network
+  ansible.builtin.command: virsh net-autostart default --disable
+  when: default_net_check.rc == 0
+  failed_when: false
+
+- name: Create VXLAN network XML
+  ansible.builtin.template:
+    src: vxlan-network.xml.j2
+    dest: /tmp/vxlan-network.xml
+    mode: '0644'
+
+- name: Check if VXLAN network exists
+  ansible.builtin.command: virsh net-info {{ libvirt_network_name }}
+  register: vxlan_net_check
+  failed_when: false
+  changed_when: false
+
+- name: Define VXLAN network
+  ansible.builtin.command: virsh net-define /tmp/vxlan-network.xml
+  when: vxlan_net_check.rc != 0
+
+- name: Start VXLAN network
+  ansible.builtin.command: virsh net-start {{ libvirt_network_name }}
+  when: vxlan_net_check.rc != 0
+  failed_when: false
+
+- name: Autostart VXLAN network
+  ansible.builtin.command: virsh net-autostart {{ libvirt_network_name }}
+  changed_when: false
+
+- name: Remove temporary network XML
+  ansible.builtin.file:
+    path: /tmp/vxlan-network.xml
+    state: absent

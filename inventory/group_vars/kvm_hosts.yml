@@ -1,0 +1,22 @@
+---
+# VXLAN 네트워크 설정
+vxlan_vni: 100
+vxlan_port: 4789
+vxlan_mtu: 1450
+vxlan_interface_name: vxlan100
+vxlan_bridge_name: br-vxlan
+vxlan_overlay_network: 10.200.1.0/24
+
+# VXLAN 모드: unicast (FDB 기반)
+vxlan_mode: unicast
+
+# 유니캐스트 피어 목록 (모든 호스트 IP)
+vxlan_peers:
+  - 192.168.0.50
+  - 192.168.0.46
+  - 192.168.0.49
+
+# libvirt 설정
+libvirt_network_name: vxlan-network
+libvirt_pool_name: default
+libvirt_pool_path: /var/lib/libvirt/images

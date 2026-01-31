@@ -1,0 +1,7 @@
+---
+- name: Create netplan configuration for VXLAN
+  ansible.builtin.template:
+    src: vxlan-netplan.yaml.j2
+    dest: /etc/netplan/60-vxlan.yaml
+    mode: '0600'
+  notify: apply netplan
