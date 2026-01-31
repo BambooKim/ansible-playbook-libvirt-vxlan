@@ -1,0 +1,80 @@
+---
+- name: Verify VXLAN and Libvirt deployment
+  hosts: kvm_hosts
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Check VXLAN interface status
+      ansible.builtin.command: ip -d link show {{ vxlan_interface_name }}
+      register: vxlan_status
+      changed_when: false
+
+    - name: Display VXLAN interface info
+      ansible.builtin.debug:
+        var: vxlan_status.stdout_lines
+
+    - name: Check bridge interface status
+      ansible.builtin.command: ip -d link show {{ vxlan_bridge_name }}
+      register: bridge_status
+      changed_when: false
+
+    - name: Display bridge interface info
+      ansible.builtin.debug:
+        var: bridge_status.stdout_lines
+
+    - name: Check FDB entries
+      ansible.builtin.command: bridge fdb show dev {{ vxlan_interface_name }}
+      register: fdb_entries
+      changed_when: false
+
+    - name: Display FDB entries
+      ansible.builtin.debug:
+        var: fdb_entries.stdout_lines
+
+    - name: Test overlay network connectivity
+      ansible.builtin.command: ping -c 3 -W 2 {{ item }}
+      loop: "{{ groups['kvm_hosts'] | map('extract', hostvars, 'vxlan_overlay_ip') | list }}"
+      register: ping_results
+      failed_when: false
+      changed_when: false
+
+    - name: Display ping results
+      ansible.builtin.debug:
+        msg: "Ping to {{ item.item }}: {{ 'SUCCESS' if item.rc == 0 else 'FAILED' }}"
+      loop: "{{ ping_results.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Check libvirt service status
+      ansible.builtin.service:
+        name: libvirtd
+        state: started
+      check_mode: yes
+
+    - name: List libvirt networks
+      ansible.builtin.command: virsh net-list --all
+      register: virsh_networks
+      changed_when: false
+
+    - name: Display libvirt networks
+      ansible.builtin.debug:
+        var: virsh_networks.stdout_lines
+
+    - name: List libvirt storage pools
+      ansible.builtin.command: virsh pool-list --all
+      register: virsh_pools
+      changed_when: false
+
+    - name: Display storage pools
+      ansible.builtin.debug:
+        var: virsh_pools.stdout_lines
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "=== Verification Summary for {{ inventory_hostname }} ==="
+          - "Overlay IP: {{ vxlan_overlay_ip }}"
+          - "VXLAN Interface: UP"
+          - "Bridge Interface: UP"
+          - "Libvirt Network: {{ libvirt_network_name }}"

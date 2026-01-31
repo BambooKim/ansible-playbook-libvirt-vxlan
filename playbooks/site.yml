@@ -1,0 +1,58 @@
+---
+- name: Deploy Libvirt KVM with VXLAN overlay network
+  hosts: kvm_hosts
+  become: yes
+
+  pre_tasks:
+    - name: Verify connectivity
+      ansible.builtin.ping:
+
+    - name: Gather facts
+      ansible.builtin.setup:
+        gather_subset:
+          - hardware
+          - network
+          - virtual
+
+    - name: Check CPU virtualization support
+      ansible.builtin.shell: grep -cE '(vmx|svm)' /proc/cpuinfo
+      register: virt_support
+      failed_when: virt_support.stdout | int < 1
+      changed_when: false
+
+    - name: Display virtualization info
+      ansible.builtin.debug:
+        msg: "CPU virtualization extensions found: {{ virt_support.stdout }} cores"
+
+  roles:
+    - role: common
+      tags: [common, base]
+
+    - role: vxlan
+      tags: [vxlan, network]
+
+    - role: libvirt
+      tags: [libvirt, kvm]
+
+  post_tasks:
+    - name: Verify VXLAN interface exists
+      ansible.builtin.command: ip link show {{ vxlan_interface_name }}
+      changed_when: false
+
+    - name: Verify bridge interface exists
+      ansible.builtin.command: ip link show {{ vxlan_bridge_name }}
+      changed_when: false
+
+    - name: Verify libvirt network is active
+      ansible.builtin.command: virsh net-info {{ libvirt_network_name }}
+      changed_when: false
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "=== Deployment Complete ==="
+          - "Host: {{ inventory_hostname }}"
+          - "VXLAN Interface: {{ vxlan_interface_name }} (VNI: {{ vxlan_vni }})"
+          - "Bridge: {{ vxlan_bridge_name }}"
+          - "Overlay IP: {{ vxlan_overlay_ip }}"
+          - "Libvirt Network: {{ libvirt_network_name }}"

@@ -1,0 +1,24 @@
+# VXLAN overlay network configuration
+# Managed by Ansible - Do not edit manually
+network:
+  version: 2
+  renderer: networkd
+
+  tunnels:
+    {{ vxlan_interface_name }}:
+      mode: vxlan
+      id: {{ vxlan_vni }}
+      local: {{ vxlan_local_ip }}
+      port: {{ vxlan_port }}
+      mtu: {{ vxlan_mtu }}
+
+  bridges:
+    {{ vxlan_bridge_name }}:
+      interfaces:
+        - {{ vxlan_interface_name }}
+      addresses:
+        - {{ vxlan_overlay_ip }}/24
+      mtu: {{ vxlan_mtu }}
+      parameters:
+        stp: false
+        forward-delay: 0

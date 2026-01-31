@@ -1,0 +1,33 @@
+---
+- name: Check if bridge interface exists
+  ansible.builtin.command: ip link show {{ vxlan_bridge_name }}
+  register: bridge_check
+  failed_when: false
+  changed_when: false
+
+- name: Create bridge interface
+  ansible.builtin.command: ip link add name {{ vxlan_bridge_name }} type bridge
+  when: bridge_check.rc != 0
+
+- name: Add VXLAN interface to bridge
+  ansible.builtin.command: ip link set {{ vxlan_interface_name }} master {{ vxlan_bridge_name }}
+  failed_when: false
+  changed_when: false
+
+- name: Set bridge MTU
+  ansible.builtin.command: ip link set {{ vxlan_bridge_name }} mtu {{ vxlan_mtu }}
+  changed_when: false
+
+- name: Check if bridge has IP address
+  ansible.builtin.shell: ip addr show {{ vxlan_bridge_name }} | grep -q "{{ vxlan_overlay_ip }}"
+  register: bridge_ip_check
+  failed_when: false
+  changed_when: false
+
+- name: Assign IP address to bridge
+  ansible.builtin.command: ip addr add {{ vxlan_overlay_ip }}/24 dev {{ vxlan_bridge_name }}
+  when: bridge_ip_check.rc != 0
+
+- name: Bring up bridge interface
+  ansible.builtin.command: ip link set {{ vxlan_bridge_name }} up
+  changed_when: false

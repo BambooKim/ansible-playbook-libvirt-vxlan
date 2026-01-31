@@ -1,0 +1,4 @@
+---
+libvirt_network_name: vxlan-network
+libvirt_pool_name: default
+libvirt_pool_path: /var/lib/libvirt/images

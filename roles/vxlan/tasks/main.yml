@@ -1,0 +1,9 @@
+---
+- name: Include VXLAN interface tasks
+  ansible.builtin.include_tasks: interface.yml
+
+- name: Include bridge tasks
+  ansible.builtin.include_tasks: bridge.yml
+
+- name: Include persistence tasks
+  ansible.builtin.include_tasks: persistence.yml
