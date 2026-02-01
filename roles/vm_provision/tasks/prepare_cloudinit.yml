@@ -1,0 +1,55 @@
+---
+- name: Get VMs for current host
+  ansible.builtin.set_fact:
+    vms_on_host: "{{ kvm_vms[inventory_hostname] | default([]) }}"
+
+- name: Display VMs to create on this host
+  ansible.builtin.debug:
+    msg: "Creating {{ vms_on_host | length }} VM(s) on {{ inventory_hostname }}"
+
+- name: Create cloud-init temporary directory
+  ansible.builtin.file:
+    path: "{{ vm_cloudinit_tmp_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Read SSH public key
+  ansible.builtin.slurp:
+    src: "{{ vm_ssh_public_key_file }}"
+  register: ssh_public_key
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Set SSH public key fact
+  ansible.builtin.set_fact:
+    vm_ssh_public_key: "{{ ssh_public_key.content | b64decode | trim }}"
+
+- name: Generate cloud-init user-data for each VM
+  ansible.builtin.template:
+    src: user-data.yml.j2
+    dest: "{{ vm_cloudinit_tmp_dir }}/{{ item.name }}-user-data.yml"
+    mode: '0644'
+  loop: "{{ vms_on_host }}"
+  vars:
+    vm_name: "{{ item.name }}"
+    vm_ip: "{{ item.ip }}"
+
+- name: Generate cloud-init meta-data for each VM
+  ansible.builtin.template:
+    src: meta-data.yml.j2
+    dest: "{{ vm_cloudinit_tmp_dir }}/{{ item.name }}-meta-data.yml"
+    mode: '0644'
+  loop: "{{ vms_on_host }}"
+  vars:
+    vm_name: "{{ item.name }}"
+
+- name: Create cloud-init ISO for each VM
+  ansible.builtin.command:
+    cmd: >
+      cloud-localds
+      {{ libvirt_pool_path }}/{{ item.name }}-cloud-init.iso
+      {{ vm_cloudinit_tmp_dir }}/{{ item.name }}-user-data.yml
+      {{ vm_cloudinit_tmp_dir }}/{{ item.name }}-meta-data.yml
+    creates: "{{ libvirt_pool_path }}/{{ item.name }}-cloud-init.iso"
+  loop: "{{ vms_on_host }}"

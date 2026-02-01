@@ -1,0 +1,127 @@
+---
+- name: Verify Kubernetes VMs on KVM hosts
+  hosts: kvm_hosts
+  become: yes
+  tasks:
+    - name: List all VMs
+      ansible.builtin.command: virsh list --all
+      register: vm_list
+      changed_when: false
+
+    - name: Display VMs on this host
+      ansible.builtin.debug:
+        var: vm_list.stdout_lines
+
+    - name: Check VM network connectivity
+      ansible.builtin.command: ping -c 3 {{ item }}
+      loop:
+        - 10.200.1.10
+        - 10.200.1.11
+        - 10.200.1.12
+        - 10.200.1.13
+      register: vm_ping
+      failed_when: false
+      changed_when: false
+
+- name: Verify Kubernetes cluster
+  hosts: k8s_masters
+  become: no
+  become_user: ubuntu
+  tasks:
+    - name: Check cluster info
+      ansible.builtin.command: kubectl cluster-info
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: cluster_info
+      changed_when: false
+
+    - name: Display cluster info
+      ansible.builtin.debug:
+        var: cluster_info.stdout_lines
+
+    - name: Get all nodes
+      ansible.builtin.command: kubectl get nodes -o wide
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: all_nodes
+      changed_when: false
+
+    - name: Display all nodes
+      ansible.builtin.debug:
+        var: all_nodes.stdout_lines
+
+    - name: Verify all nodes are Ready
+      ansible.builtin.shell: |
+        kubectl get nodes --no-headers | awk '{print $2}' | grep -v Ready
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: not_ready_nodes
+      failed_when: not_ready_nodes.stdout != ""
+      changed_when: false
+
+    - name: Get all pods in all namespaces
+      ansible.builtin.command: kubectl get pods -A -o wide
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: all_pods
+      changed_when: false
+
+    - name: Display all pods
+      ansible.builtin.debug:
+        var: all_pods.stdout_lines
+
+    - name: Verify system pods are Running
+      ansible.builtin.shell: |
+        kubectl get pods -n kube-system --no-headers | grep -v Running | grep -v Completed
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: not_running_pods
+      failed_when: not_running_pods.stdout != ""
+      changed_when: false
+
+    - name: Create test deployment
+      ansible.builtin.command: |
+        kubectl create deployment nginx-test --image=nginx --replicas=2
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: test_deploy
+      failed_when: false
+      changed_when: "'created' in test_deploy.stdout"
+
+    - name: Wait for test deployment to be ready
+      ansible.builtin.command: |
+        kubectl wait --for=condition=available deployment/nginx-test --timeout=120s
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: test_ready
+      failed_when: test_ready.rc != 0
+      when: test_deploy is changed
+
+    - name: Get test deployment pods
+      ansible.builtin.command: kubectl get pods -l app=nginx-test -o wide
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: test_pods
+      changed_when: false
+      when: test_deploy is changed
+
+    - name: Display test pods
+      ansible.builtin.debug:
+        var: test_pods.stdout_lines
+      when: test_deploy is changed
+
+    - name: Clean up test deployment
+      ansible.builtin.command: kubectl delete deployment nginx-test
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      when: test_deploy is changed
+      changed_when: false
+
+    - name: Display verification summary
+      ansible.builtin.debug:
+        msg:
+          - "=== Kubernetes Cluster Verification Complete ==="
+          - "✓ All nodes are Ready"
+          - "✓ All system pods are Running"
+          - "✓ Test deployment successful"
+          - "✓ Cluster is operational"

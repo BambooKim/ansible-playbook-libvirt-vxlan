@@ -5,3 +5,4 @@ vxlan_mtu: 1450
 vxlan_interface_name: vxlan100
 vxlan_bridge_name: br-vxlan
 vxlan_mode: unicast
+vxlan_network: 10.200.1.0/24

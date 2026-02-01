@@ -1,0 +1,132 @@
+---
+# Phase 1: VM 생성 (KVM 호스트에서 실행)
+- name: Create Kubernetes VMs on KVM hosts
+  hosts: kvm_hosts
+  become: yes
+  roles:
+    - role: vm_provision
+      tags: [vm, provision]
+
+# Phase 2: VM 대기
+- name: Wait for VMs to be accessible
+  hosts: kvm-host01
+  gather_facts: no
+  become: false
+  tasks:
+    - name: Wait for SSH on all VMs
+      ansible.builtin.wait_for:
+        host: "{{ item }}"
+        port: 22
+        delay: 10
+        timeout: 300
+      loop:
+        - 10.200.1.10
+        - 10.200.1.11
+        - 10.200.1.12
+        - 10.200.1.13
+
+    - name: Display VM accessibility status
+      ansible.builtin.debug:
+        msg: "All VMs are now accessible via SSH"
+
+# Phase 3: Kubernetes 설치 (전체 노드)
+- name: Install Kubernetes prerequisites and runtime
+  hosts: k8s_cluster
+  become: yes
+  tasks:
+    - name: Include prerequisites tasks
+      ansible.builtin.include_role:
+        name: k8s_cluster
+        tasks_from: prerequisites
+        apply:
+          tags: [k8s, prereq]
+      tags: [k8s, prereq]
+
+    - name: Include install runtime tasks
+      ansible.builtin.include_role:
+        name: k8s_cluster
+        tasks_from: install_runtime
+        apply:
+          tags: [k8s, runtime]
+      tags: [k8s, runtime]
+
+    - name: Include install k8s tasks
+      ansible.builtin.include_role:
+        name: k8s_cluster
+        tasks_from: install_k8s
+        apply:
+          tags: [k8s, install]
+      tags: [k8s, install]
+
+# Phase 4: 마스터 초기화
+- name: Initialize Kubernetes master
+  hosts: k8s_masters
+  become: yes
+  tasks:
+    - name: Include init master tasks
+      ansible.builtin.include_role:
+        name: k8s_cluster
+        tasks_from: init_master
+        apply:
+          tags: [k8s, master]
+      tags: [k8s, master]
+
+    - name: Include setup CNI tasks
+      ansible.builtin.include_role:
+        name: k8s_cluster
+        tasks_from: setup_cni
+        apply:
+          tags: [k8s, cni]
+      tags: [k8s, cni]
+
+# Phase 5: 워커 노드 Join
+- name: Join worker nodes to cluster
+  hosts: k8s_workers
+  become: yes
+  tasks:
+    - name: Include join workers tasks
+      ansible.builtin.include_role:
+        name: k8s_cluster
+        tasks_from: join_workers
+        apply:
+          tags: [k8s, workers]
+      tags: [k8s, workers]
+
+# Phase 6: 검증
+- name: Verify cluster status
+  hosts: k8s_masters
+  become: no
+  become_user: ubuntu
+  tasks:
+    - name: Get cluster nodes
+      ansible.builtin.command: kubectl get nodes -o wide
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: k8s_nodes
+      changed_when: false
+
+    - name: Display cluster nodes
+      ansible.builtin.debug:
+        var: k8s_nodes.stdout_lines
+
+    - name: Get cluster pods
+      ansible.builtin.command: kubectl get pods -A
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      register: k8s_pods
+      changed_when: false
+
+    - name: Display all pods
+      ansible.builtin.debug:
+        var: k8s_pods.stdout_lines
+
+    - name: Display deployment completion
+      ansible.builtin.debug:
+        msg:
+          - "=== Kubernetes Cluster Deployment Complete ==="
+          - "Cluster: {{ k8s_version }}"
+          - "Master: {{ k8s_master_ip }}"
+          - "Nodes: 4 (1 master + 3 workers)"
+          - "Pod Network: {{ k8s_pod_network_cidr }}"
+          - "Service Network: {{ k8s_service_cidr }}"
+          - "CNI: {{ k8s_cni_plugin }}"

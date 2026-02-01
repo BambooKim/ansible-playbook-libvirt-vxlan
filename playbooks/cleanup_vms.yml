@@ -1,0 +1,45 @@
+---
+- name: Cleanup existing VMs and cloud-init files
+  hosts: kvm_hosts
+  become: true
+  tasks:
+    - name: Get VMs for current host
+      ansible.builtin.set_fact:
+        vms_on_host: "{{ kvm_vms[inventory_hostname] | default([]) }}"
+
+    - name: Stop VMs
+      ansible.builtin.command:
+        cmd: "virsh destroy {{ item.name }}"
+      loop: "{{ vms_on_host }}"
+      ignore_errors: true
+      register: vm_stop
+
+    - name: Undefine VMs
+      ansible.builtin.command:
+        cmd: "virsh undefine {{ item.name }}"
+      loop: "{{ vms_on_host }}"
+      ignore_errors: true
+      register: vm_undefine
+
+    - name: Remove VM disk images
+      ansible.builtin.file:
+        path: "{{ libvirt_pool_path }}/{{ item.name }}.qcow2"
+        state: absent
+      loop: "{{ vms_on_host }}"
+
+    - name: Remove cloud-init ISOs
+      ansible.builtin.file:
+        path: "{{ libvirt_pool_path }}/{{ item.name }}-cloud-init.iso"
+        state: absent
+      loop: "{{ vms_on_host }}"
+
+    - name: Remove cloud-init temporary directory
+      ansible.builtin.file:
+        path: /tmp/cloudinit
+        state: absent
+
+    - name: Display cleanup summary
+      ansible.builtin.debug:
+        msg:
+          - "Cleaned up VMs on {{ inventory_hostname }}:"
+          - "{{ vms_on_host | map(attribute='name') | list }}"

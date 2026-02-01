@@ -1,0 +1,52 @@
+#cloud-config
+hostname: {{ vm_name }}
+fqdn: {{ vm_name }}.k8s.local
+manage_etc_hosts: true
+
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - {{ vm_ssh_public_key }}
+
+# 정적 IP 설정 (netplan)
+write_files:
+  - path: /etc/netplan/50-cloud-init.yaml
+    content: |
+      network:
+        version: 2
+        ethernets:
+          enp1s0:
+            mtu: 1450
+            addresses:
+              - {{ vm_ip }}/24
+            routes:
+              - to: default
+                via: {{ vm_default_gateway }}
+            nameservers:
+              addresses:
+{% for dns in vm_dns_servers %}
+                - {{ dns }}
+{% endfor %}
+    permissions: '0644'
+
+# 필수 패키지 설치
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+
+runcmd:
+  - netplan apply
+  - systemctl disable --now ufw
+  - swapoff -a
+  - sed -i '/swap/d' /etc/fstab
+  - systemctl restart ssh
+
+power_state:
+  mode: reboot
+  condition: true

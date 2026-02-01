@@ -1,0 +1,9 @@
+---
+- name: Include download image tasks
+  ansible.builtin.include_tasks: download_image.yml
+
+- name: Include prepare cloud-init tasks
+  ansible.builtin.include_tasks: prepare_cloudinit.yml
+
+- name: Include create VM tasks
+  ansible.builtin.include_tasks: create_vm.yml

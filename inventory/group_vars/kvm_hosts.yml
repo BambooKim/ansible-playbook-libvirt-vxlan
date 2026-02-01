@@ -20,3 +20,38 @@ vxlan_peers:
 libvirt_network_name: vxlan-network
 libvirt_pool_name: default
 libvirt_pool_path: /var/lib/libvirt/images
+
+# VM 정의 - 호스트별 매핑
+kvm_vms:
+  kvm-host01:
+    - name: k8s-master-01
+      role: master
+      ip: 10.200.1.10
+      vcpus: 4
+      memory: 4096
+      disk_size: 40G
+  kvm-host02:
+    - name: k8s-worker-01
+      role: worker
+      ip: 10.200.1.11
+      vcpus: 4
+      memory: 4096
+      disk_size: 50G
+  kvm-host03:
+    - name: k8s-worker-02
+      role: worker
+      ip: 10.200.1.12
+      vcpus: 4
+      memory: 4096
+      disk_size: 50G
+    - name: k8s-worker-03
+      role: worker
+      ip: 10.200.1.13
+      vcpus: 4
+      memory: 4096
+      disk_size: 50G
+
+# VM cloud-init 설정
+vm_ssh_public_key_file: ~/.ssh/id_rsa.pub
+vm_base_image_url: https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+vm_os_variant: ubuntu22.04

@@ -1,0 +1,21 @@
+---
+all:
+  children:
+    k8s_cluster:
+      children:
+        k8s_masters:
+          hosts:
+            k8s-master-01:
+              ansible_host: 10.200.1.10
+        k8s_workers:
+          hosts:
+            k8s-worker-01:
+              ansible_host: 10.200.1.11
+            k8s-worker-02:
+              ansible_host: 10.200.1.12
+            k8s-worker-03:
+              ansible_host: 10.200.1.13
+      vars:
+        ansible_user: ubuntu
+        ansible_ssh_private_key_file: ~/.ssh/id_rsa
+        ansible_python_interpreter: /usr/bin/python3

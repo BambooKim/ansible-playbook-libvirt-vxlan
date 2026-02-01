@@ -1,0 +1,17 @@
+---
+- name: Check if base image already exists
+  ansible.builtin.stat:
+    path: "{{ libvirt_pool_path }}/{{ vm_base_image_name }}"
+  register: base_image_stat
+
+- name: Download Ubuntu 22.04 cloud image
+  ansible.builtin.get_url:
+    url: "{{ vm_base_image_url }}"
+    dest: "{{ libvirt_pool_path }}/{{ vm_base_image_name }}"
+    mode: '0644'
+    timeout: 600
+  when: not base_image_stat.stat.exists
+
+- name: Display base image info
+  ansible.builtin.debug:
+    msg: "Base image: {{ libvirt_pool_path }}/{{ vm_base_image_name }}"
