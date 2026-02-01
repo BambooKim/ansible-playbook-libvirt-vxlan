@@ -1,0 +1,15 @@
+---
+# VM 기본 설정
+vm_base_image_name: ubuntu-22.04-base.img
+vm_default_vcpus: 2
+vm_default_memory: 2048
+vm_default_disk_size: 30G
+
+# cloud-init 기본 설정
+vm_default_gateway: 10.200.1.1
+vm_dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4
+
+# cloud-init ISO 저장 경로
+vm_cloudinit_tmp_dir: /tmp/cloudinit

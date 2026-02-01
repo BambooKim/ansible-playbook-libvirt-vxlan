@@ -1,0 +1,52 @@
+---
+- name: Check if VM already exists
+  ansible.builtin.command: virsh list --all --name
+  register: existing_vms
+  changed_when: false
+
+- name: Create VM disk from base image
+  ansible.builtin.command:
+    cmd: >
+      qemu-img create -f qcow2
+      -F qcow2
+      -b {{ libvirt_pool_path }}/{{ vm_base_image_name }}
+      {{ libvirt_pool_path }}/{{ item.name }}.qcow2
+      {{ item.disk_size }}
+  loop: "{{ vms_on_host }}"
+  when: item.name not in existing_vms.stdout_lines
+  register: disk_creation
+
+- name: Create VM with virt-install
+  ansible.builtin.command:
+    cmd: >
+      virt-install
+      --name {{ item.name }}
+      --memory {{ item.memory }}
+      --vcpus {{ item.vcpus }}
+      --disk path={{ libvirt_pool_path }}/{{ item.name }}.qcow2,device=disk,bus=virtio
+      --disk path={{ libvirt_pool_path }}/{{ item.name }}-cloud-init.iso,device=cdrom
+      --network network={{ libvirt_network_name }},model=virtio
+      --os-variant {{ vm_os_variant }}
+      --virt-type kvm
+      --graphics none
+      --noautoconsole
+      --import
+  loop: "{{ vms_on_host }}"
+  when: item.name not in existing_vms.stdout_lines
+  register: vm_creation
+
+- name: Wait for VMs to boot and get IP
+  ansible.builtin.wait_for:
+    host: "{{ item.ip }}"
+    port: 22
+    delay: 30
+    timeout: 300
+    state: started
+  loop: "{{ vms_on_host }}"
+  become: false
+
+- name: Display VM creation summary
+  ansible.builtin.debug:
+    msg:
+      - "VMs created on {{ inventory_hostname }}:"
+      - "{{ vms_on_host | map(attribute='name') | list }}"

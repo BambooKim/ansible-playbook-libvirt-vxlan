@@ -1,0 +1,51 @@
+---
+- name: Check if Kubernetes is already initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  register: k8s_init
+
+- name: Initialize Kubernetes cluster
+  ansible.builtin.command:
+    cmd: >
+      kubeadm init
+      --pod-network-cidr={{ k8s_pod_network_cidr }}
+      --apiserver-advertise-address={{ k8s_master_ip }}
+      --service-cidr={{ k8s_service_cidr }}
+  when: not k8s_init.stat.exists
+  register: kubeadm_init
+
+- name: Display kubeadm init output
+  ansible.builtin.debug:
+    var: kubeadm_init.stdout_lines
+  when: kubeadm_init is changed
+
+- name: Create .kube directory for ubuntu user
+  ansible.builtin.file:
+    path: /home/ubuntu/.kube
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+
+- name: Copy admin.conf to user's kube config
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/ubuntu/.kube/config
+    owner: ubuntu
+    group: ubuntu
+    mode: '0600'
+    remote_src: yes
+
+- name: Extract join command
+  ansible.builtin.shell: kubeadm token create --print-join-command
+  register: join_command
+  changed_when: false
+
+- name: Save join command to dummy host for workers
+  ansible.builtin.add_host:
+    name: "k8s_join_command_holder"
+    join_command: "{{ join_command.stdout }}"
+
+- name: Display join command
+  ansible.builtin.debug:
+    msg: "Join command: {{ join_command.stdout }}"

@@ -1,0 +1,33 @@
+---
+- name: Check if node is already joined
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
+- name: Join Kubernetes cluster
+  ansible.builtin.command:
+    cmd: "{{ hostvars['k8s_join_command_holder']['join_command'] }}"
+  when: not kubelet_conf.stat.exists
+  register: join_result
+
+- name: Display join result
+  ansible.builtin.debug:
+    var: join_result.stdout_lines
+  when: join_result is changed
+
+- name: Wait for node to be ready
+  ansible.builtin.command:
+    cmd: kubectl get nodes {{ ansible_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+  become: no
+  environment:
+    KUBECONFIG: /home/ubuntu/.kube/config
+  register: node_ready
+  until: node_ready.stdout == "True"
+  retries: 20
+  delay: 15
+  changed_when: false
+
+- name: Display node join completion
+  ansible.builtin.debug:
+    msg: "Node {{ ansible_hostname }} joined and is ready"

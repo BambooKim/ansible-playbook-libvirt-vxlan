@@ -1,0 +1,31 @@
+---
+- name: Download Flannel CNI manifest
+  ansible.builtin.get_url:
+    url: https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+    dest: /tmp/kube-flannel.yml
+    mode: '0644'
+  become: no
+
+- name: Install Flannel CNI
+  ansible.builtin.command:
+    cmd: kubectl apply -f /tmp/kube-flannel.yml
+  become: no
+  environment:
+    KUBECONFIG: /home/ubuntu/.kube/config
+  register: flannel_install
+  changed_when: "'created' in flannel_install.stdout or 'configured' in flannel_install.stdout"
+
+- name: Wait for CoreDNS to be ready
+  ansible.builtin.command:
+    cmd: kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
+  become: no
+  environment:
+    KUBECONFIG: /home/ubuntu/.kube/config
+  retries: 3
+  delay: 10
+  register: coredns_ready
+  until: coredns_ready.rc == 0
+
+- name: Display CNI installation completion
+  ansible.builtin.debug:
+    msg: "Flannel CNI installed and CoreDNS is ready"

@@ -1,0 +1,9 @@
+---
+# Kubernetes 기본 설정 (group_vars에서 오버라이드 가능)
+k8s_version: "1.34.3"
+k8s_pod_network_cidr: "10.244.0.0/16"
+k8s_service_cidr: "10.96.0.0/12"
+k8s_cni_plugin: "flannel"
+
+# containerd 설정
+containerd_version: "1.7"
