@@ -38,18 +38,24 @@
       ansible.builtin.include_role:
         name: k8s_cluster
         tasks_from: prerequisites
+        apply:
+          tags: [k8s, prereq]
       tags: [k8s, prereq]
 
     - name: Include install runtime tasks
       ansible.builtin.include_role:
         name: k8s_cluster
         tasks_from: install_runtime
+        apply:
+          tags: [k8s, runtime]
       tags: [k8s, runtime]
 
     - name: Include install k8s tasks
       ansible.builtin.include_role:
         name: k8s_cluster
         tasks_from: install_k8s
+        apply:
+          tags: [k8s, install]
       tags: [k8s, install]
 
 # Phase 4: 마스터 초기화
@@ -61,12 +67,16 @@
       ansible.builtin.include_role:
         name: k8s_cluster
         tasks_from: init_master
+        apply:
+          tags: [k8s, master]
       tags: [k8s, master]
 
     - name: Include setup CNI tasks
       ansible.builtin.include_role:
         name: k8s_cluster
         tasks_from: setup_cni
+        apply:
+          tags: [k8s, cni]
       tags: [k8s, cni]
 
 # Phase 5: 워커 노드 Join
@@ -78,6 +88,8 @@
       ansible.builtin.include_role:
         name: k8s_cluster
         tasks_from: join_workers
+        apply:
+          tags: [k8s, workers]
       tags: [k8s, workers]
 
 # Phase 6: 검증

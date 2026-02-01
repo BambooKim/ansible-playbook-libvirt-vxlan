@@ -19,6 +19,7 @@ write_files:
         version: 2
         ethernets:
           enp1s0:
+            mtu: 1450
             addresses:
               - {{ vm_ip }}/24
             routes:
