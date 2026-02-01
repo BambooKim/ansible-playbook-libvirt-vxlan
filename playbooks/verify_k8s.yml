@@ -23,18 +23,6 @@
       failed_when: false
       changed_when: false
 
-    - name: Verify SSH connectivity
-      ansible.builtin.wait_for:
-        host: "{{ item }}"
-        port: 22
-        timeout: 10
-      loop:
-        - 10.200.1.10
-        - 10.200.1.11
-        - 10.200.1.12
-        - 10.200.1.13
-      delegate_to: localhost
-
 - name: Verify Kubernetes cluster
   hosts: k8s_masters
   become: no
