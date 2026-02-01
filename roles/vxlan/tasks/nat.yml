@@ -1,0 +1,30 @@
+---
+- name: Add iptables MASQUERADE rule for VXLAN network
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    source: "{{ vxlan_network }}"
+    out_interface: "{{ underlay_interface }}"
+    jump: MASQUERADE
+    comment: "NAT for VXLAN overlay network"
+  notify: Save iptables rules
+
+- name: Allow forwarding from VXLAN bridge
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: "{{ vxlan_bridge_name }}"
+    jump: ACCEPT
+  notify: Save iptables rules
+
+- name: Allow forwarding to VXLAN bridge
+  ansible.builtin.iptables:
+    chain: FORWARD
+    out_interface: "{{ vxlan_bridge_name }}"
+    jump: ACCEPT
+  notify: Save iptables rules
+
+- name: Ensure iptables-persistent is installed
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+    update_cache: yes

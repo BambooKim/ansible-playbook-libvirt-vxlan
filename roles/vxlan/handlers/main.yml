@@ -1,3 +1,9 @@
 ---
 - name: apply netplan
   ansible.builtin.command: netplan apply
+
+- name: Save iptables rules
+  ansible.builtin.shell: |
+    iptables-save > /etc/iptables/rules.v4 || true
+    netfilter-persistent save || true
+  changed_when: true

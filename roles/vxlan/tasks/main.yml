@@ -5,5 +5,8 @@
 - name: Include bridge tasks
   ansible.builtin.include_tasks: bridge.yml
 
+- name: Include NAT configuration tasks
+  ansible.builtin.include_tasks: nat.yml
+
 - name: Include persistence tasks
   ansible.builtin.include_tasks: persistence.yml
